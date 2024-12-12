@@ -14,6 +14,12 @@ body {
     grid-gap: 20px;
 }
 
+.bottom-items {
+    display: grid;
+    grid-template-columns: 2fr 3fr 2fr;
+    grid-gap: 20px;
+}
+
 .alert-container {
     border: 1px solid black;
     overflow-y: auto; 
@@ -38,9 +44,26 @@ body {
    font-family: monospace; 
 }
 
+
+.code-container {
+    border: 1px solid black;
+    flex-grow: 1;
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: monospace;
+    font-size: 1.5rem; 
+    font-weight: bold;
+    height: 50px; 
+}
+
+
 .message-container div {
     background-color: #ccc;
     padding: 5px;
+    width: 50%;
 }
 
 form {
@@ -69,3 +92,8 @@ form button {
     font-size: 16px;
     cursor: pointer;
 }
+
+.codediv {
+    margin-bottom: 10px;
+}
+

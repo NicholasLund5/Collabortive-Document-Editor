@@ -7,19 +7,35 @@
     </head>
     <body>
         <div class="grid-items">
-            <div id="alert-container" class="alert-container"></div>
-            <div id="user-list" class="user-list"></div>
+            <div>
+                <h3 class="connected-header">Alerts:</h3>
+                <div id="alert-container" class="alert-container"></div>
+            </div>
+            <div>
+                <h3 class="connected-header">Other users editing this document:</h3>
+                <div id="user-list" class="user-list"></div>
+            </div>
         </div>
-        <div id="message-container" class="message-container"></div>
-        <form id="form">
-            <label for="room-input">Room</label>
-            <input type="text" id="room-input">
-            <button type="button" id="room-button">Join</button>
-        </form>
-        <form id="form">
-            <label for="username-input">Username</label>
-            <input type="text" id="username-input">
-            <button type="button" id="room-button">Join</button>
-        </form>
+
+        <div id="message-container" class="message-container" contenteditable="true">
+        </div>
+
+        <div>
+            <form id="form">
+                <label for="room-input">Room</label>
+                <input type="text" id="room-input" placeholder="Enter room code">
+                <button type="button" id="room-button">Join</button>
+            </form>
+            <form id="form">
+                <label for="username-input">Username</label>
+                <input type="text" id="username-input" placeholder="Anonymous">
+                <button type="button" id="room-button">Update Name</button>
+            </form>
+        </div>
+        <div class="bottom-items codediv">
+            <button type="button" id="generate-room-code">Generate Room Code</button>
+            <div class="code-container" id="room-code"></div>
+            <button type="button" id="download-button">Download File</button>
+        </div>
     </body>
 </html>
