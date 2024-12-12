@@ -2,9 +2,9 @@
 
 import { io } from "socket.io-client";
 
+const usernameInput = document.getElementById("username-input");
 const joinRoomButton = document.getElementById("room-button");
 const roomInput = document.getElementById("room-input");
-
 const alertContainer = document.getElementById("alert-container");
 const messageContainer = document.getElementById("message-container");
 messageContainer.setAttribute("contenteditable", "true");
@@ -19,7 +19,17 @@ socket.on('receive-message', message => {
 });
 
 socket.on('connect', () => {
+    const username = usernameInput.value.trim() || "Anonymous";
+    room = socket.id
     displayAlert(`You connected with id: ${socket.id}`);
+    socket.emit('set-name', username);
+    socket.emit('start-room', room, message => {
+        displayAlert(message); 
+    });
+});
+
+socket.on("update-user-list", (users) => {
+    updateUserList(users);
 });
 
 messageContainer.addEventListener("input", emitMessageUpdate);
@@ -73,7 +83,26 @@ joinRoomButton.addEventListener("click", () => {
     });
 });
 
+usernameInput.addEventListener("change", () => {
+    const username = usernameInput.value.trim() || "Anonymous";
+    socket.emit('set-name', username)
+});
 
 function displayAlert(message) {
     alertContainer.innerHTML += message + "<br>";
 }
+
+
+function updateUserList(users) {
+    const userList = document.getElementById("user-list");
+    userList.innerHTML = "";
+    users.forEach(user => {
+        const userItem = document.createElement("li");
+        const nameText = document.createTextNode(user);
+        userItem.appendChild(nameText);
+        const lineBreak = document.createElement("br");
+        userItem.appendChild(lineBreak);      
+        userList.appendChild(userItem);
+    });
+}
+

@@ -6,11 +6,19 @@
         <script src="script.js" type="module"></script>
     </head>
     <body>
-        <div id="alert-container" class="alert-container"></div>
+        <div class="grid-items">
+            <div id="alert-container" class="alert-container"></div>
+            <div id="user-list" class="user-list"></div>
+        </div>
         <div id="message-container" class="message-container"></div>
         <form id="form">
             <label for="room-input">Room</label>
             <input type="text" id="room-input">
+            <button type="button" id="room-button">Join</button>
+        </form>
+        <form id="form">
+            <label for="username-input">Username</label>
+            <input type="text" id="username-input">
             <button type="button" id="room-button">Join</button>
         </form>
     </body>

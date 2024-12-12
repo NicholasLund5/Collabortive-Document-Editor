@@ -8,12 +8,26 @@ body {
     max-width: 1200px;
 }
 
+.grid-items {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 20px;
+}
+
 .alert-container {
     border: 1px solid black;
     overflow-y: auto; 
     height: 50px;
     margin-bottom: 20px;
  }
+
+.user-list {
+    border: 1px solid black;
+    overflow-y: auto; 
+    height: 50px;
+    margin-bottom: 20px;
+ }
+
 
 .message-container {
    border: 1px solid black;
