@@ -1,4 +1,3 @@
-//npm start 
 import { io } from "socket.io-client";
 
 const usernameInput = document.getElementById("username-input");
@@ -14,30 +13,31 @@ const downloadButton = document.getElementById("download-button");
 const saveButton = document.getElementById("bookmark-button");
 const fileList = document.getElementById("file-list");
 const newFile = document.getElementById("new-file");
-
 const themeButton = document.getElementById("theme-button");
 
-const generateUserId = document.getElementById("generate-user-id");
-const userIdContainer = document.getElementById("user-id-container");
+const loginForm = document.getElementById("login-form");
+const signupForm = document.getElementById("signup-form");
+const loginUsername = document.getElementById("login-username");
+const loginPassword = document.getElementById("login-password");
+const signupUsername = document.getElementById("signup-username");
+const signupPassword = document.getElementById("signup-password");
 
-const loginButton = document.getElementById("login-button");
-const idInput = document.getElementById("id-input");
+const updateNameButton = document.getElementById("update-name-button");
+const joinRoomButton = document.getElementById("join-room-button");
 
 const socket = io("http://localhost:3000");
 const roomCode = makeid(); 
 
-let userID = "";
+let socketID = "";
+let userID = localStorage.getItem("user_id") || ""; 
 let currentUsername = ""; 
 let userRoom = roomCode; 
-
 let savedDocuments = new Set();
 
-// Socket Events
 socket.on("connect", () => {
-    userID = socket.id;
+    socketID = socket.id; 
     joinRoom(roomCode, true);
 });
-
 
 socket.on("failed-to-join", () => {
     alert("Failed to join room. Please enter a valid room code.");
@@ -53,6 +53,13 @@ socket.on("receive-name", name => {
 
 socket.on("update-user-list", (users) => {
     updateUserList(users);
+});
+
+socket.on("update-bookmark-name", ({ room, name }) => {
+    if (savedDocuments.has(room)) {
+        bookmarkDoc(name, room, true);
+        alert("Updated bookmark name!");
+    }
 });
 
 socket.on("remove-cursor", (id) => {
@@ -90,16 +97,60 @@ socket.on("cursor-update", ({ id, position, room }) => {
     }
 });
 
+loginForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const username = loginUsername.value.trim();
+    const password = loginPassword.value.trim();
+    socket.emit("login", username, password, (response) => {
+        if (response.success) {
+            userID = response.user_id;
+            localStorage.setItem("user_id", userID);
+            alert("Login successful!");
 
-// Input handlers
-generateUserId.addEventListener("click", () => {
-    userIdContainer.textContent = userID;
-    console.log(`User Id: ${userID}`);
+            if (response.bookmarks && response.bookmarks.length > 0) {
+                response.bookmarks.forEach(bm => {
+                    bookmarkDoc(bm.name, bm.room_id, false, true);
+                });
+            }
+        } else {
+            alert(response.message);
+        }
+    });
+});
+
+
+signupForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const username = signupUsername.value.trim();
+    const password = signupPassword.value.trim();
+    socket.emit("signup", username, password, (response) => {
+        if (response.success) {
+            userID = response.user_id;
+            localStorage.setItem("user_id", userID);
+            alert("Signup successful!");
+        } else {
+            alert(response.message);
+        }
+    });
+});
+
+updateNameButton.addEventListener("click", () => {
+    currentUsername = usernameInput.value.trim() || "Anonymous";
+    socket.emit("set-name", currentUsername, userRoom);
+});
+
+joinRoomButton.addEventListener("click", () => {
+    const newRoom = roomInput.value.trim();
+    if (!newRoom) {
+        alert("Room name cannot be empty.");
+        return;
+    }
+    joinRoom(newRoom, false);
 });
 
 documentField.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
-        event.preventDefault(); // Prevent the default action of inserting a newline
+        event.preventDefault();
     }
 });
 
@@ -123,6 +174,7 @@ messageContainer.addEventListener("keyup", () => {
 messageContainer.addEventListener("blur", () => {
     socket.emit("remove-cursor", userRoom);
 });
+
 generateRoomCode.addEventListener("click", () => {
     roomCodeField.textContent = userRoom || roomCode;
 });
@@ -131,7 +183,6 @@ newFile.addEventListener("click", () => {
     socket.emit("leave-room", userRoom); 
     userRoom = makeid();
     joinRoom(userRoom, true);
-    
     roomCodeField.textContent = "";
 });
 
@@ -149,53 +200,28 @@ downloadButton.addEventListener("click", () => {
 });
 
 saveButton.addEventListener("click", () => {
+    if (!userID) {
+        alert("You must be logged in to bookmark files.");
+        return;
+    }
     const documentName = documentField.innerText.trim() || "Untitled Document";
     const documentRef = userRoom;
-    bookmarkDoc(documentName, documentRef, false)
+    bookmarkDoc(documentName, documentRef, false);
 });
 
 themeButton.addEventListener("click", () => {
-    if (document.getElementById("css").getAttribute("href") === "lightmode.css") {
-        document.getElementById("css").setAttribute("href", "darkmode.css");
+    const cssLink = document.getElementById("css");
+    if (cssLink.getAttribute("href") === "lightmode.css") {
+        cssLink.setAttribute("href", "darkmode.css");
     } else {
-        document.getElementById("css").setAttribute("href", "lightmode.css");
+        cssLink.setAttribute("href", "lightmode.css");
     }
 });
 
-roomInput.addEventListener("change", () => {
-    const newRoom = roomInput.value.trim();
-    if (!newRoom) {
-        alert("Room name cannot be empty.");
-        return;
-    }
-    userRoom = newRoom;
-    joinRoom(userRoom, false);
-});
-
-usernameInput.addEventListener("change", () => {
-    currentUsername = usernameInput.value.trim() || "Anonymous";
-    socket.emit("set-name", currentUsername, userRoom);
-});
-
-loginButton.addEventListener("click", () => {
-    const id = idInput.value.trim() || socket.id;
-    loadSavedDocuments(id);
-});
-
-document.querySelector("#name-form").addEventListener("submit", function(event) {
-    event.preventDefault();
-});
-document.querySelector("#room-form").addEventListener("submit", function(event) {
-    event.preventDefault();
-});
-
-
-
-//Helper Functions
 function emitNameUpdate() {
     const updatedName = documentField.innerHTML;
-    if (savedDocuments.has(userRoom)) {
-        bookmarkDoc(updatedName, userRoom, true)
+    if (userID && savedDocuments.has(userRoom)) {
+        bookmarkDoc(updatedName, userRoom, true);
     }
     socket.emit("edit-name", updatedName, userRoom);
 }
@@ -205,46 +231,50 @@ function emitMessageUpdate() {
     socket.emit("edit-message", updatedMessage, userRoom);
 }
 
-
 function joinRoom(room, firstRoom) {
     if (!firstRoom && userRoom && userRoom !== room) {
-        Array.from(document.querySelectorAll(".remote-cursor")).forEach((cursor) => {
+        Array.from(document.querySelectorAll(".remote-cursor")).forEach(cursor => {
             cursor.remove();
         });
 
-        socket.emit("leave-room", userRoom); 
-    } 
-
-    userRoom = room; 
+        socket.emit("leave-room", userRoom);
+    }
 
     socket.emit("join-room", room, firstRoom, (message) => {
-        messageContainer.innerHTML = message; 
+        userRoom = room; 
+        messageContainer.innerHTML = message;
+
+        roomCodeField.textContent = room;
+
+        socket.emit("request-user-list", room);
     });
 }
-
 
 function updateUserList(users) {
     const userList = document.getElementById("user-list");
     userList.innerHTML = ""; 
-    users
-        .filter(user => user.id !== userID) 
-        .forEach(user => {
+
+    const otherUsers = users.filter(user => user.id !== socketID);
+
+    if (otherUsers.length > 0) {
+        otherUsers.forEach(user => {
             const userItem = document.createElement("li");
-            const nameText = document.createTextNode(user.name);
-            userItem.appendChild(nameText);
+            userItem.textContent = user.name;
             userList.appendChild(userItem);
         });
-    if (users.length === 1) {
-        const userItem = document.createElement("div");
-        const nameText = document.createTextNode('No one else, loner!');
-        userItem.appendChild(nameText);
-        userList.appendChild(userItem);
+    } else {
+        const noOneHereMessage = document.createElement("div");
+        noOneHereMessage.textContent = "No one else, loner!";
+        userList.appendChild(noOneHereMessage);
     }
-
 }
+
+
+
 
 function insertNodeAtCaret(content) {
     const selection = window.getSelection();
+    if (!selection.rangeCount) return;
     const range = selection.getRangeAt(0);
 
     let node;
@@ -255,7 +285,6 @@ function insertNodeAtCaret(content) {
     }
 
     range.insertNode(node);
-
     range.setStartAfter(node);
     range.setEndAfter(node);
     selection.removeAllRanges();
@@ -283,7 +312,7 @@ function getRandomColor() {
       color += letters[Math.floor(Math.random() * 16)];
     }
     return color;
-  }
+}
 
 function updateCursor() {
     const selection = window.getSelection();
@@ -299,45 +328,18 @@ function updateCursor() {
     socket.emit("cursor-move", caretPosition, userRoom);
 }
 
-function loadSavedDocuments(id) {
-    socket.emit("get-saved-rooms", id, (savedRooms) => {
-        if (!Array.isArray(savedRooms)) {
-            console.error("Invalid savedRooms data received:", savedRooms);
-            return;
+function bookmarkDoc(documentName, documentRef, updateStatus, fromDatabase = false) {
+    if (!userID) {
+        alert("You must be logged in to use bookmarks.");
+        return;
+    }
+
+    // If we're adding a previously known bookmark from DB, we skip alerts
+    if (savedDocuments.has(documentRef) && !updateStatus) {
+        if (!fromDatabase) {
+            alert("Document already bookmarked.");
         }
-
-        // Clear the file list
-        fileList.innerHTML = "";
-
-        // Populate the file list with saved rooms
-        savedRooms.forEach(({ documentName, documentRef }) => {
-            const userItem = document.createElement("button");
-            userItem.dataset.ref = documentRef;
-            userItem.textContent = documentName;
-
-            userItem.addEventListener("click", () => {
-                joinRoom(documentRef, false);
-            });
-
-            fileList.appendChild(userItem);
-
-            const deleteButton = document.createElement("button");
-            deleteButton.textContent = "X";
-
-            deleteButton.addEventListener("click", () => {
-                socket.emit("remove-saved", documentRef);
-                fileList.removeChild(deleteButton);
-                fileList.removeChild(userItem);
-            });
-
-            fileList.appendChild(deleteButton);
-        });
-    });
-}
-
-function bookmarkDoc(documentName, documentRef, updateStatus) {
-    if (savedDocuments.has(documentRef) && updateStatus === false) {
-        alert("Document already bookmarked.");
+        return;
     } else if (!updateStatus) {
         savedDocuments.add(documentRef);
 
@@ -352,7 +354,6 @@ function bookmarkDoc(documentName, documentRef, updateStatus) {
             joinRoom(documentRef, false);
         });
 
-        // Create the delete button
         const deleteButton = document.createElement("button");
         deleteButton.textContent = "X";
         deleteButton.className = "delete-button";
@@ -366,10 +367,11 @@ function bookmarkDoc(documentName, documentRef, updateStatus) {
 
         buttonContainer.appendChild(userItem);
         buttonContainer.appendChild(deleteButton);
-
         fileList.appendChild(buttonContainer);
 
-        socket.emit("save-room", documentRef);
+        if (!fromDatabase) {
+            socket.emit("save-room", documentRef);
+        }
     } else {
         const buttonContainer = Array.from(fileList.children).find(
             (child) => child.firstElementChild && child.firstElementChild.dataset.ref === documentRef
@@ -380,6 +382,8 @@ function bookmarkDoc(documentName, documentRef, updateStatus) {
                 userItem.textContent = documentName;
             }
         }
-        socket.emit("save-room", documentRef);
+        if (!fromDatabase) {
+            socket.emit("save-room", documentRef);
+        }
     }
 }
