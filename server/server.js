@@ -1,83 +1,111 @@
+//npm run devStart
 const io = require("socket.io")(3000, {
     cors: {
         origin: ["http://localhost:8080", "https://admin.socket.io"],
     },
 });
 
-const roomMessages = {};
-const roomNames = {};
-const rooms = [];
-const connectedUsers = {};
+class Room {
+    constructor(name = "Untitled Document", message = "Begin editing...") {
+        this.name = name;
+        this.message = message;
+        this.connectedUsers = {}; 
+    }
 
-io.on("connection", socket => {
-    connectedUsers[socket.id] = { name: "Anonymous", room: null };
-    
+    addUser(socketId, name = "Anonymous") {
+        this.connectedUsers[socketId] = { name };
+    }
+
+    removeUser(socketId) {
+        delete this.connectedUsers[socketId];
+    }
+
+}
+
+const rooms = new Map(); 
+
+io.on("connection", (socket) => {
     socket.on("set-name", (name, room) => {
-        connectedUsers[socket.id] = { name, room };
-        const usersInRoom = Object.entries(connectedUsers)
-            .filter(([id, user]) => user.room === room)
-            .map(([id, user]) => ({ id, name: user.name }));
-        io.to(room).emit("update-user-list", usersInRoom);
+        const roomInstance = rooms.get(room);
+        if (roomInstance) {
+            roomInstance.addUser(socket.id, name);
+            updateUserList(room);
+        }
     });
 
     socket.on("join-room", (room, firstRoom, cb) => {
-        if (!firstRoom && !rooms.includes(room)) {
+        if (!firstRoom && !rooms.has(room)) {
             socket.emit("failed-to-join");
         } else {
-        socket.join(room);
-        rooms.push(room);
-        const currentMessage = roomMessages[room] || "Begin editing...";
-        const currentName = roomNames[room] || "Untitled Document";
-        connectedUsers[socket.id].room = room; 
-        cb(room);
-        socket.emit("receive-message", currentMessage);
-        socket.emit("receive-name", currentName);
-        const usersInRoom = Object.entries(connectedUsers)
-            .filter(([id, user]) => user.room === room)
-            .map(([id, user]) => ({ id, name: user.name }));
-        io.to(room).emit("update-user-list", usersInRoom);
+            if (!rooms.has(room)) {
+                rooms.set(room, new Room());
+            }
+
+            socket.join(room);
+            const roomInstance = rooms.get(room);
+            roomInstance.addUser(socket.id);
+
+            cb(room);
+            socket.emit("receive-message", roomInstance.message);
+            socket.emit("receive-name", roomInstance.name);
+            updateUserList(room);
         }
     });
 
     socket.on("leave-room", (room) => {
-        if (connectedUsers[socket.id]?.room === room) {
+        const roomInstance = rooms.get(room);
+        if (roomInstance) {
+            roomInstance.removeUser(socket.id);
             socket.leave(room);
-            connectedUsers[socket.id].room = null; 
+            socket.to(room).emit("remove-cursor", socket.id); 
+            updateUserList(room);
+        }
+    });
     
-            socket.to(room).emit("remove-cursor", socket.id);
-    
-            const usersInRoom = Object.entries(connectedUsers)
-                .filter(([id, user]) => user.room === room)
-                .map(([id, user]) => ({ id, name: user.name }));
-            io.to(room).emit("update-user-list", usersInRoom);
-    
-            console.log(`Socket ${socket.id} left room: ${room}`);
+    socket.on("disconnect", () => {
+        for (const [roomId, roomInstance] of rooms.entries()) {
+            if (roomInstance.connectedUsers[socket.id]) {
+                roomInstance.removeUser(socket.id);
+                socket.to(roomId).emit("remove-cursor", socket.id); 
+                updateUserList(roomId);
+                break;
+            }
         }
     });
 
     socket.on("edit-message", (message, room) => {
-        roomMessages[room] = message;
-        socket.to(room).emit("receive-message", message);
+        const roomInstance = rooms.get(room);
+        if (roomInstance) {
+            roomInstance.message = message;
+            socket.to(room).emit("receive-message", message);
+        }
     });
 
-    socket.on("edit-name", (message, room) => {
-        roomNames[room] = message;
-        socket.to(room).emit("receive-name", message);
-    });
-
-    socket.on("disconnect", () => {
-        const { room } = connectedUsers[socket.id] || {};
-        delete connectedUsers[socket.id];
-        if (room) {
-            const usersInRoom = Object.entries(connectedUsers)
-                .filter(([id, user]) => user.room === room)
-                .map(([id, user]) => ({ id, name: user.name }));
-            io.to(room).emit("update-user-list", usersInRoom);
+    socket.on("edit-name", (name, room) => {
+        const roomInstance = rooms.get(room);
+        if (roomInstance) {
+            roomInstance.name = name;
+            socket.to(room).emit("receive-name", name);
         }
     });
 
     socket.on("cursor-move", (caretPosition, room) => {
         socket.to(room).emit("cursor-update", { id: socket.id, position: caretPosition, room });
     });
+
+    socket.on("remove-cursor", (room) => {
+        const roomInstance = rooms.get(room);
+        if (roomInstance && roomInstance.connectedUsers[socket.id]) {
+            socket.to(room).emit("remove-cursor", socket.id); // Notify others to remove the cursor
+        }
+    });
     
 });
+
+function updateUserList(room) {
+    const roomInstance = rooms.get(room);
+    if (roomInstance) {
+        const usersInRoom = Object.entries(roomInstance.connectedUsers).map(([id, user]) => ({ id, name: user.name }));
+        io.to(room).emit("update-user-list", usersInRoom);
+    }
+}

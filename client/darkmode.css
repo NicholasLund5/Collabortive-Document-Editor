@@ -6,30 +6,34 @@ body {
     height: 100vh;
     width: 100%;
     max-width: 95%;
-    font-family: monospace; 
+    font-family: monospace;
+    background-color: #121212;
+    color: #ffffff;
 }
 
 .body-grid {
     height: 90%;
     display: grid;
     grid-template-columns: 2fr 8fr 1fr;
-    grid-gap: 20px; 
+    grid-gap: 20px;
 }
 
 .bottom-grid-items {
     display: grid;
     grid-template-columns: 1fr 1fr;
     margin-top: 10px;
-    grid-gap: 20px; 
+    grid-gap: 20px;
 }
 
 .document-name {
-    border: 1px solid black;
+    border: 1px solid #444;
+    background-color: #1e1e1e;
+    color: #ffffff;
     width: 400px;
     height: 30px;
     margin-top: 48px;
     margin-bottom: 20px;
-    word-break: break-word; 
+    word-break: break-word;
     padding: 10px;
     font-size: 16px;
 }
@@ -37,13 +41,14 @@ body {
 .header-items {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    margin-top: 10px;
-    grid-gap: 20px; 
-    align-content: end; 
+    grid-gap: 20px;
+    align-content: end;
 }
 
 .new-file {
-    border: 1px solid black;
+    border: 1px solid #444;
+    background-color: #1e1e1e;
+    color: #ffffff;
     width: 30%;
     margin-top: 48px;
     margin-bottom: 20px;
@@ -54,11 +59,11 @@ body {
 
 .grid-items {
     display: grid;
-    grid-template-rows: auto; 
+    grid-template-rows: auto;
     grid-gap: 10px;
-    align-content: start; 
-    justify-content: start; 
-    height: 100%; 
+    align-content: start;
+    justify-content: start;
+    height: 100%;
 }
 
 .bottom-items {
@@ -68,44 +73,51 @@ body {
 }
 
 .alert-container {
-    border: 1px solid black;
-    overflow-y: auto; 
+    border: 1px solid #444;
+    background-color: #1e1e1e;
+    color: #ffffff;
+    overflow-y: auto;
     height: 30px;
     margin-bottom: 20px;
- }
+}
 
- .user-list {
-    border: 1px solid black;
-    overflow-y: auto; 
+.user-list {
+    border: 1px solid #444;
+    background-color: #1e1e1e;
+    color: #ffffff;
+    overflow-y: auto;
     height: 30px;
     margin-bottom: 20px;
-    word-break: break-word; 
+    word-break: break-word;
     padding: 10px;
     font-size: 16px;
 }
 
-
 .file-list {
-    border: 1px solid black;
+    border: 1px solid #444;
+    background-color: #1e1e1e;
+    color: #ffffff;
     flex-grow: 1;
-    overflow-y: auto; 
-    white-space: pre-wrap; 
+    overflow-y: auto;
+    white-space: pre-wrap;
     word-wrap: break-word;
-    font-family: monospace; 
+    font-family: monospace;
     height: 300px;
     padding: 10px;
     font-size: 16px;
 }
 
 .message-container {
-   border: 1px solid black;
-   flex-grow: 1;
-   overflow-y: auto; 
-   white-space: pre-wrap; 
-   word-wrap: break-word;
-   height: 80%;
-   padding: 10px;
-   font-size: 16px;
+    border: 1px solid #444;
+    background-color: #1e1e1e;
+    color: #ffffff;
+    flex-grow: 1;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    height: 80%;
+    padding: 10px;
+    font-size: 16px;
 }
 
 .collaborator-heading {
@@ -113,48 +125,58 @@ body {
     font-weight: bold;
     margin-bottom: 2px;
     padding-bottom: 5px;
+    color: #ffffff;
 }
 
+
+
 .code-container {
-    border: 1px solid black;
+    border: 1px solid #444;
+    background-color: #1e1e1e;
+    color: #ffffff;
     flex-grow: 1;
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
     white-space: pre-wrap;
     word-wrap: break-word;
     font-family: monospace;
-    font-size: 1.5rem; 
+    font-size: 1.5rem;
     font-weight: bold;
-    height: 50px; 
+    height: 50px;
 }
-
 
 .message-container div {
-    background-color: #ccc;
+    background-color: #333;
     padding: 5px;
     width: 50%;
+    color: #ffffff;
 }
 
-.download-button .bookmark-button { 
+.download-button .bookmark-button {
     padding: 10px;
     font-size: 16px;
     width: 100%;
     box-sizing: border-box;
     margin-top: 10px;
+    background-color: #444;
+    color: #ffffff;
+    border: none;
 }
+
 form {
     max-width: 1200px;
     margin-bottom: 10px;
     display: grid;
-    grid-template-columns: 1fr auto; 
-    grid-gap: 10px; 
+    grid-template-columns: 1fr auto;
+    grid-gap: 10px;
     height: 60px;
 }
 
 label {
-    grid-column: 1 / -1; 
+    grid-column: 1 / -1;
     margin-bottom: 5px;
+    color: #ffffff;
 }
 
 input {
@@ -162,6 +184,9 @@ input {
     font-size: 16px;
     width: 100%;
     box-sizing: border-box;
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border: 1px solid #444;
 }
 
 .generate-room-code {
@@ -171,16 +196,16 @@ input {
     box-sizing: border-box;
     margin-top: 20px;
     margin-bottom: 5px;
+    background-color: #444;
+    color: #ffffff;
+    border: none;
 }
-
-
-
-
 
 button {
     padding: 10px 15px;
     font-size: 16px;
     cursor: pointer;
+    background-color: #444;
+    color: #ffffff;
+    border: none;
 }
-
-

@@ -1,3 +1,4 @@
+//npm start 
 import { io } from "socket.io-client";
 
 const usernameInput = document.getElementById("username-input");
@@ -13,6 +14,10 @@ const downloadButton = document.getElementById("download-button");
 const saveButton = document.getElementById("bookmark-button");
 const fileList = document.getElementById("file-list");
 const newFile = document.getElementById("new-file");
+
+const themeButton = document.getElementById("theme-button");
+
+
 
 const socket = io("http://localhost:3000");
 const roomCode = makeid(); 
@@ -47,7 +52,7 @@ socket.on("update-user-list", (users) => {
 socket.on("remove-cursor", (id) => {
     const cursor = document.getElementById(`cursor-${id}`);
     if (cursor) {
-        cursor.remove();
+        cursor.remove(); 
         console.log(`Cursor removed for user: ${id}`);
     } else {
         console.log(`Cursor not found for user: ${id}`);
@@ -108,7 +113,9 @@ messageContainer.addEventListener("keydown", (event) => {
 messageContainer.addEventListener("keyup", () => {
     updateCursor();
 });
-
+messageContainer.addEventListener("blur", () => {
+    socket.emit("remove-cursor", userRoom);
+});
 generateRoomCode.addEventListener("click", () => {
     console.log(roomCode)
     roomCodeField.textContent = userRoom || roomCode;
@@ -139,6 +146,22 @@ saveButton.addEventListener("click", () => {
     bookmarkDoc(documentName, documentRef, false)
 });
 
+themeButton.addEventListener("click", () => {
+    if (document.getElementById("css").getAttribute("href") === "lightmode.css") {
+        document.getElementById("css").setAttribute("href", "darkmode.css");
+    } else {
+        document.getElementById("css").setAttribute("href", "lightmode.css");
+    }
+});
+
+document.querySelector("#name-form").addEventListener("submit", function(event) {
+    event.preventDefault();
+});
+document.querySelector("#room-form").addEventListener("submit", function(event) {
+    event.preventDefault();
+});
+
+
 function bookmarkDoc(documentName, documentRef, updateStatus) {
     if (savedDocuments.includes(documentRef) && updateStatus === false) {
         alert("Document already bookmarked.");
@@ -153,6 +176,7 @@ function bookmarkDoc(documentName, documentRef, updateStatus) {
         });
 
         fileList.appendChild(userItem);
+        
     } else {
         const existingButton = Array.from(fileList.children).find(
             (child) => child.dataset.ref === documentRef
@@ -203,7 +227,7 @@ function joinRoom(room, firstRoom) {
         });
 
         socket.emit("leave-room", userRoom); 
-    }
+    } 
 
     userRoom = room; 
 

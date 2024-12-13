@@ -2,7 +2,7 @@
 <html lang="en">
     <head>
         <title>Real-Time Collaborative Note Editor</title>
-        <link rel="stylesheet" href="styles.css">
+        <link id="css" rel="stylesheet" href="lightmode.css">
         <script src="script.js" type="module"></script>
     </head>
     <body>
@@ -13,12 +13,12 @@
                     <div id="user-list" class="user-list"></div>
                 </div>
                 <p class="collaborator-heading">Join another room:</p3>
-                <form id="form">
+                <form id="room-form">
                     <input type="text" id="room-input" placeholder="Enter room code">
                     <button type="button" id="room-button">Join</button>
                 </form>
                 <p class="collaborator-heading">Change your name:</p3>
-                <form id="form">
+                <form id="name-form">
                     <input type="text" id="username-input" placeholder="Anonymous">
                     <button type="button" id="room-button">Update</button>
                 </form>
@@ -29,6 +29,9 @@
                 <div>
                     <p class="collaborator-heading">Your files: </p>
                     <div id="file-list" class="file-list"></div>
+                </div>
+                <div>
+                    <button type="button" class="theme-button" id="theme-button">Toggle Dark/Light Mode</button>
                 </div>
             </div>
             <div>
@@ -42,7 +45,6 @@
                     <button type="button" class="bookmark-button" id="bookmark-button">Bookmark File</button>
                 </div>
             </div>
-
         </div>
     </body>
 </html>
