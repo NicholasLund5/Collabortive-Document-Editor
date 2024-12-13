@@ -1,4 +1,11 @@
-//npm run devStart
+const sqlite3 = require('sqlite3').verbose();
+
+let sql;
+// Connect to DB
+const db = new sqlite3.Database('./documents.db', sqlite3.OPEN_READWRITE, (err) => {
+  if (err) return console.error(err.message);  
+});
+
 const io = require("socket.io")(3000, {
     cors: {
         origin: ["http://localhost:8080", "https://admin.socket.io"],
@@ -20,11 +27,38 @@ class Room {
         delete this.connectedUsers[socketId];
     }
 
+    hasUsers() {
+        return Object.keys(this.connectedUsers).length > 0;
+    }
 }
 
+class User {
+    constructor(id) {
+        this.id = id; 
+        this.savedFiles = new Set(); 
+    }
+
+    saveRoom(roomID) {
+        this.savedFiles.add(roomID);
+    }
+
+    removeRoom(roomID) {
+        this.savedFiles.delete(roomID);
+    }
+
+    getSavedRooms() {
+        return Array.from(this.savedFiles);
+    }
+}
+
+const users = new Map(); 
 const rooms = new Map(); 
+const allSavedRooms = new Map();
 
 io.on("connection", (socket) => {
+    const user = new User(socket.id);
+    users.set(socket.id, user);
+
     socket.on("set-name", (name, room) => {
         const roomInstance = rooms.get(room);
         if (roomInstance) {
@@ -96,11 +130,53 @@ io.on("connection", (socket) => {
     socket.on("remove-cursor", (room) => {
         const roomInstance = rooms.get(room);
         if (roomInstance && roomInstance.connectedUsers[socket.id]) {
-            socket.to(room).emit("remove-cursor", socket.id); // Notify others to remove the cursor
+            socket.to(room).emit("remove-cursor", socket.id);
         }
     });
-    
+
+    socket.on("remove-saved", (room) => {
+        const roomInstance = rooms.get(room);
+        if (roomInstance) {
+            allSavedRooms.delete(room);
+        }
+    });
+
+    socket.on("get-saved-rooms", (id, callback) => {
+    const user = users.get(id); 
+    if (user) {
+        const savedRooms = user.getSavedRooms().map((roomId) => {
+            const roomInstance = rooms.get(roomId);
+            return {
+                documentName: roomInstance ? roomInstance.name : "Untitled Document",
+                documentRef: roomId,
+            };
+        });
+        callback(savedRooms);
+    } else {
+        callback([]); 
+    }
 });
+
+    socket.on("remove-room", (RoomId) => {
+        user.removeRoom(RoomId);
+    });
+
+    socket.on("save-room", (RoomId) => {
+        const roomInstance = rooms.get(RoomId);
+        user.saveRoom(RoomId);
+        if (roomInstance) {
+            allSavedRooms.set(RoomId, roomInstance);
+        }
+    });
+});
+
+function cleanupRooms() {
+    for (const [roomId, roomInstance] of rooms.entries()) {
+        if (!roomInstance.hasUsers() && !allSavedRooms.has(roomId)) {
+            rooms.delete(roomId);
+        }
+    }
+}
 
 function updateUserList(room) {
     const roomInstance = rooms.get(room);
@@ -109,3 +185,5 @@ function updateUserList(room) {
         io.to(room).emit("update-user-list", usersInRoom);
     }
 }
+
+setInterval(cleanupRooms, 60000);

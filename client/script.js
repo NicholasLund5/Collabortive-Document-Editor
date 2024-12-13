@@ -17,21 +17,27 @@ const newFile = document.getElementById("new-file");
 
 const themeButton = document.getElementById("theme-button");
 
+const generateUserId = document.getElementById("generate-user-id");
+const userIdContainer = document.getElementById("user-id-container");
 
+const loginButton = document.getElementById("login-button");
+const idInput = document.getElementById("id-input");
 
 const socket = io("http://localhost:3000");
 const roomCode = makeid(); 
 
-let currentUserId = "";
+let userID = "";
 let currentUsername = ""; 
 let userRoom = roomCode; 
-let savedDocuments = [];
+
+let savedDocuments = new Set();
 
 // Socket Events
 socket.on("connect", () => {
-    currentUserId = socket.id;
+    userID = socket.id;
     joinRoom(roomCode, true);
 });
+
 
 socket.on("failed-to-join", () => {
     alert("Failed to join room. Please enter a valid room code.");
@@ -52,11 +58,8 @@ socket.on("update-user-list", (users) => {
 socket.on("remove-cursor", (id) => {
     const cursor = document.getElementById(`cursor-${id}`);
     if (cursor) {
-        cursor.remove(); 
-        console.log(`Cursor removed for user: ${id}`);
-    } else {
-        console.log(`Cursor not found for user: ${id}`);
-    }
+        cursor.remove();
+    } 
 });
 
 socket.on("cursor-update", ({ id, position, room }) => {
@@ -89,12 +92,16 @@ socket.on("cursor-update", ({ id, position, room }) => {
 
 
 // Input handlers
+generateUserId.addEventListener("click", () => {
+    userIdContainer.textContent = userID;
+    console.log(`User Id: ${userID}`);
+});
+
 documentField.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
         event.preventDefault(); // Prevent the default action of inserting a newline
     }
 });
-
 
 documentField.addEventListener("input", emitNameUpdate);
 messageContainer.addEventListener("input", emitMessageUpdate);
@@ -117,13 +124,14 @@ messageContainer.addEventListener("blur", () => {
     socket.emit("remove-cursor", userRoom);
 });
 generateRoomCode.addEventListener("click", () => {
-    console.log(roomCode)
     roomCodeField.textContent = userRoom || roomCode;
 });
 
 newFile.addEventListener("click", () => {
+    socket.emit("leave-room", userRoom); 
     userRoom = makeid();
     joinRoom(userRoom, true);
+    
     roomCodeField.textContent = "";
 });
 
@@ -154,41 +162,6 @@ themeButton.addEventListener("click", () => {
     }
 });
 
-document.querySelector("#name-form").addEventListener("submit", function(event) {
-    event.preventDefault();
-});
-document.querySelector("#room-form").addEventListener("submit", function(event) {
-    event.preventDefault();
-});
-
-
-function bookmarkDoc(documentName, documentRef, updateStatus) {
-    if (savedDocuments.includes(documentRef) && updateStatus === false) {
-        alert("Document already bookmarked.");
-    } else if (!updateStatus) {
-        savedDocuments.push(documentRef);
-        const userItem = document.createElement("button");
-        userItem.dataset.ref = documentRef;
-        userItem.textContent = documentName;
-
-        userItem.addEventListener("click", () => {
-            joinRoom(documentRef, false); 
-        });
-
-        fileList.appendChild(userItem);
-        
-    } else {
-        const existingButton = Array.from(fileList.children).find(
-            (child) => child.dataset.ref === documentRef
-        );
-        if (existingButton) {
-            existingButton.textContent = documentName;
-        }
-    }
-}
-
-
-
 roomInput.addEventListener("change", () => {
     const newRoom = roomInput.value.trim();
     if (!newRoom) {
@@ -204,11 +177,24 @@ usernameInput.addEventListener("change", () => {
     socket.emit("set-name", currentUsername, userRoom);
 });
 
+loginButton.addEventListener("click", () => {
+    const id = idInput.value.trim() || socket.id;
+    loadSavedDocuments(id);
+});
+
+document.querySelector("#name-form").addEventListener("submit", function(event) {
+    event.preventDefault();
+});
+document.querySelector("#room-form").addEventListener("submit", function(event) {
+    event.preventDefault();
+});
+
+
 
 //Helper Functions
 function emitNameUpdate() {
     const updatedName = documentField.innerHTML;
-    if (savedDocuments.includes(userRoom)) {
+    if (savedDocuments.has(userRoom)) {
         bookmarkDoc(updatedName, userRoom, true)
     }
     socket.emit("edit-name", updatedName, userRoom);
@@ -233,8 +219,6 @@ function joinRoom(room, firstRoom) {
 
     socket.emit("join-room", room, firstRoom, (message) => {
         messageContainer.innerHTML = message; 
-        documentField.innerHTML = roomNames[room] || "Untitled Document"; 
-        console.log(`Joined room: ${room}`);
     });
 }
 
@@ -243,16 +227,14 @@ function updateUserList(users) {
     const userList = document.getElementById("user-list");
     userList.innerHTML = ""; 
     users
-        .filter(user => user.id !== currentUserId) 
+        .filter(user => user.id !== userID) 
         .forEach(user => {
             const userItem = document.createElement("li");
             const nameText = document.createTextNode(user.name);
             userItem.appendChild(nameText);
             userList.appendChild(userItem);
         });
-        console.log(users.length);
     if (users.length === 1) {
-        console.log('here')
         const userItem = document.createElement("div");
         const nameText = document.createTextNode('No one else, loner!');
         userItem.appendChild(nameText);
@@ -315,4 +297,89 @@ function updateCursor() {
     };
 
     socket.emit("cursor-move", caretPosition, userRoom);
+}
+
+function loadSavedDocuments(id) {
+    socket.emit("get-saved-rooms", id, (savedRooms) => {
+        if (!Array.isArray(savedRooms)) {
+            console.error("Invalid savedRooms data received:", savedRooms);
+            return;
+        }
+
+        // Clear the file list
+        fileList.innerHTML = "";
+
+        // Populate the file list with saved rooms
+        savedRooms.forEach(({ documentName, documentRef }) => {
+            const userItem = document.createElement("button");
+            userItem.dataset.ref = documentRef;
+            userItem.textContent = documentName;
+
+            userItem.addEventListener("click", () => {
+                joinRoom(documentRef, false);
+            });
+
+            fileList.appendChild(userItem);
+
+            const deleteButton = document.createElement("button");
+            deleteButton.textContent = "X";
+
+            deleteButton.addEventListener("click", () => {
+                socket.emit("remove-saved", documentRef);
+                fileList.removeChild(deleteButton);
+                fileList.removeChild(userItem);
+            });
+
+            fileList.appendChild(deleteButton);
+        });
+    });
+}
+
+function bookmarkDoc(documentName, documentRef, updateStatus) {
+    if (savedDocuments.has(documentRef) && updateStatus === false) {
+        alert("Document already bookmarked.");
+    } else if (!updateStatus) {
+        savedDocuments.add(documentRef);
+
+        const buttonContainer = document.createElement("div");
+        buttonContainer.className = "button-container";
+
+        const userItem = document.createElement("button");
+        userItem.dataset.ref = documentRef;
+        userItem.textContent = documentName;
+
+        userItem.addEventListener("click", () => {
+            joinRoom(documentRef, false);
+        });
+
+        // Create the delete button
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "X";
+        deleteButton.className = "delete-button";
+
+        deleteButton.addEventListener("click", () => {
+            socket.emit("remove-saved", documentRef);
+            savedDocuments.delete(documentRef);
+            socket.emit("remove-file", documentRef);
+            fileList.removeChild(buttonContainer);
+        });
+
+        buttonContainer.appendChild(userItem);
+        buttonContainer.appendChild(deleteButton);
+
+        fileList.appendChild(buttonContainer);
+
+        socket.emit("save-room", documentRef);
+    } else {
+        const buttonContainer = Array.from(fileList.children).find(
+            (child) => child.firstElementChild && child.firstElementChild.dataset.ref === documentRef
+        );
+        if (buttonContainer) {
+            const userItem = buttonContainer.querySelector("button[data-ref]");
+            if (userItem) {
+                userItem.textContent = documentName;
+            }
+        }
+        socket.emit("save-room", documentRef);
+    }
 }
