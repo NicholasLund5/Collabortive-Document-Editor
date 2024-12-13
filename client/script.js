@@ -1,40 +1,97 @@
 import { io } from "socket.io-client";
 
 const usernameInput = document.getElementById("username-input");
-const joinRoomButton = document.getElementById("room-button");
 const roomInput = document.getElementById("room-input");
-const alertContainer = document.getElementById("alert-container");
-const messageContainer = document.getElementById("message-container");
+
 const generateRoomCode = document.getElementById("generate-room-code");
 const roomCodeField = document.getElementById("room-code");
-const downloadButton = document.getElementById("download-button");
 
+const documentField = document.getElementById("document-name");
+const messageContainer = document.getElementById("message-container");
+
+const downloadButton = document.getElementById("download-button");
+const saveButton = document.getElementById("bookmark-button");
+const fileList = document.getElementById("file-list");
+const newFile = document.getElementById("new-file");
 
 const socket = io("http://localhost:3000");
+const roomCode = makeid(); 
 
 let currentUserId = "";
 let currentUsername = ""; 
-let room = ""; 
-const roomCode = makeid(); 
+let userRoom = roomCode; 
+let savedDocuments = [];
 
 // Socket Events
-
 socket.on("connect", () => {
     currentUserId = socket.id;
-    joinRoom(roomCode, false);
+    joinRoom(roomCode, true);
+});
+
+socket.on("failed-to-join", () => {
+    alert("Failed to join room. Please enter a valid room code.");
 });
 
 socket.on("receive-message", message => {
     messageContainer.innerHTML = message;
-    console.log("Message updated from server:", message);
+});
+
+socket.on("receive-name", name => {
+    documentField.innerHTML = name;
 });
 
 socket.on("update-user-list", (users) => {
     updateUserList(users);
 });
 
-// Input handlers
+socket.on("remove-cursor", (id) => {
+    const cursor = document.getElementById(`cursor-${id}`);
+    if (cursor) {
+        cursor.remove();
+        console.log(`Cursor removed for user: ${id}`);
+    } else {
+        console.log(`Cursor not found for user: ${id}`);
+    }
+});
 
+socket.on("cursor-update", ({ id, position, room }) => {
+    if (room !== userRoom) return;
+
+    let cursor = document.getElementById(`cursor-${id}`);
+    if (!cursor) {
+        cursor = document.createElement("span");
+        cursor.id = `cursor-${id}`;
+        cursor.className = "remote-cursor";
+        cursor.style.position = "absolute";
+        cursor.style.width = "2px";
+        cursor.style.height = "20px";
+        cursor.style.backgroundColor = getRandomColor(); 
+        document.body.appendChild(cursor);
+    }
+
+    const nodes = Array.from(messageContainer.childNodes);
+    if (position.nodeIndex >= 0 && position.nodeIndex < nodes.length) {
+        const targetNode = nodes[position.nodeIndex];
+        const range = document.createRange();
+        range.setStart(targetNode, position.start);
+        range.setEnd(targetNode, position.start);
+
+        const rect = range.getBoundingClientRect();
+        cursor.style.top = `${rect.top + window.scrollY}px`;
+        cursor.style.left = `${rect.left + window.scrollX}px`;
+    }
+});
+
+
+// Input handlers
+documentField.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        event.preventDefault(); // Prevent the default action of inserting a newline
+    }
+});
+
+
+documentField.addEventListener("input", emitNameUpdate);
 messageContainer.addEventListener("input", emitMessageUpdate);
 messageContainer.addEventListener("keydown", (event) => {
     if (event.key === "Tab") {
@@ -45,61 +102,118 @@ messageContainer.addEventListener("keydown", (event) => {
         event.preventDefault();
         insertNodeAtCaret("br");
     }
+    updateCursor();
+});
+
+messageContainer.addEventListener("keyup", () => {
+    updateCursor();
 });
 
 generateRoomCode.addEventListener("click", () => {
     console.log(roomCode)
-    roomCodeField.textContent = roomCode;
+    roomCodeField.textContent = userRoom || roomCode;
+});
+
+newFile.addEventListener("click", () => {
+    userRoom = makeid();
+    joinRoom(userRoom, true);
+    roomCodeField.textContent = "";
 });
 
 downloadButton.addEventListener("click", () => {
-    const blob = new Blob([messageContainer.innerText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
+    const documentName = documentField.innerText.trim() || "Untitled Document";
+    const documentBlob = new Blob([messageContainer.innerText], { type: "text/plain" });
+    const url = URL.createObjectURL(documentBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "message.txt"; 
+    a.download = `${documentName}.txt`; 
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 });
 
+saveButton.addEventListener("click", () => {
+    const documentName = documentField.innerText.trim() || "Untitled Document";
+    const documentRef = userRoom;
+    bookmarkDoc(documentName, documentRef, false)
+});
 
-joinRoomButton.addEventListener("click", () => {
+function bookmarkDoc(documentName, documentRef, updateStatus) {
+    if (savedDocuments.includes(documentRef) && updateStatus === false) {
+        alert("Document already bookmarked.");
+    } else if (!updateStatus) {
+        savedDocuments.push(documentRef);
+        const userItem = document.createElement("button");
+        userItem.dataset.ref = documentRef;
+        userItem.textContent = documentName;
+
+        userItem.addEventListener("click", () => {
+            joinRoom(documentRef, false); 
+        });
+
+        fileList.appendChild(userItem);
+    } else {
+        const existingButton = Array.from(fileList.children).find(
+            (child) => child.dataset.ref === documentRef
+        );
+        if (existingButton) {
+            existingButton.textContent = documentName;
+        }
+    }
+}
+
+
+
+roomInput.addEventListener("change", () => {
     const newRoom = roomInput.value.trim();
     if (!newRoom) {
-        displayAlert("Room name cannot be empty.");
+        alert("Room name cannot be empty.");
         return;
     }
-    room = newRoom;
-    joinRoom(room, true);
+    userRoom = newRoom;
+    joinRoom(userRoom, false);
 });
 
 usernameInput.addEventListener("change", () => {
     currentUsername = usernameInput.value.trim() || "Anonymous";
-    socket.emit("set-name", currentUsername, room);
+    socket.emit("set-name", currentUsername, userRoom);
 });
 
 
 //Helper Functions
+function emitNameUpdate() {
+    const updatedName = documentField.innerHTML;
+    if (savedDocuments.includes(userRoom)) {
+        bookmarkDoc(updatedName, userRoom, true)
+    }
+    socket.emit("edit-name", updatedName, userRoom);
+}
 
 function emitMessageUpdate() {
     const updatedMessage = messageContainer.innerHTML;
-    socket.emit("edit-message", updatedMessage, room);
+    socket.emit("edit-message", updatedMessage, userRoom);
 }
 
-function joinRoom(room, joiningRoom) {
-    socket.emit("join-room", room, message => {
-        if (joiningRoom) {
-            displayAlert(message);
-        }
-        socket.emit("set-name", usernameInput.value.trim() || "Anonymous", room);
-    }); 
+
+function joinRoom(room, firstRoom) {
+    if (!firstRoom && userRoom && userRoom !== room) {
+        Array.from(document.querySelectorAll(".remote-cursor")).forEach((cursor) => {
+            cursor.remove();
+        });
+
+        socket.emit("leave-room", userRoom); 
+    }
+
+    userRoom = room; 
+
+    socket.emit("join-room", room, firstRoom, (message) => {
+        messageContainer.innerHTML = message; 
+        documentField.innerHTML = roomNames[room] || "Untitled Document"; 
+        console.log(`Joined room: ${room}`);
+    });
 }
 
-function displayAlert(message) {
-    alertContainer.innerHTML = message + "<br>";
-}
 
 function updateUserList(users) {
     const userList = document.getElementById("user-list");
@@ -154,4 +268,27 @@ function makeid(length = 16) {
       counter += 1;
     }
     return result;
+}
+
+function getRandomColor() {
+    var letters = '0123456789ABCDEF';
+    var color = '#';
+    for (var i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+  }
+
+function updateCursor() {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    const range = selection.getRangeAt(0);
+    const caretPosition = {
+        start: range.startOffset,
+        end: range.endOffset,
+        nodeIndex: Array.from(messageContainer.childNodes).indexOf(range.startContainer),
+    };
+
+    socket.emit("cursor-move", caretPosition, userRoom);
 }

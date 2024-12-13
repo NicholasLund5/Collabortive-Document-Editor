@@ -6,36 +6,43 @@
         <script src="script.js" type="module"></script>
     </head>
     <body>
-        <div class="grid-items">
-            <div>
-                <h3 class="connected-header">Alerts:</h3>
-                <div id="alert-container" class="alert-container"></div>
+        <div class="body-grid">
+            <div class="grid-items">
+                <div>
+                    <p class="collaborator-heading">Other users editing this document:</p3>
+                    <div id="user-list" class="user-list"></div>
+                </div>
+                <p class="collaborator-heading">Join another room:</p3>
+                <form id="form">
+                    <input type="text" id="room-input" placeholder="Enter room code">
+                    <button type="button" id="room-button">Join</button>
+                </form>
+                <p class="collaborator-heading">Change your name:</p3>
+                <form id="form">
+                    <input type="text" id="username-input" placeholder="Anonymous">
+                    <button type="button" id="room-button">Update</button>
+                </form>
+                <div>
+                    <button type="button" class="generate-room-code" id="generate-room-code">Generate Sharable Room Code</button>
+                    <div class="code-container" id="room-code"></div>
+                </div>
+                <div>
+                    <p class="collaborator-heading">Your files: </p>
+                    <div id="file-list" class="file-list"></div>
+                </div>
             </div>
             <div>
-                <h3 class="connected-header">Other users editing this document:</h3>
-                <div id="user-list" class="user-list"></div>
+                <div class= "header-items">
+                <div id="document-name" class="document-name" contenteditable="true">Untitled Document</div>
+                <button type="button" class="new-file" id="new-file">New File - Will overwrite</button>
+                </div>
+                <div id="message-container" class="message-container" contenteditable="true"></div>
+                <div class="bottom-grid-items">
+                    <button type="button" class="download-button" id="download-button">Download File</button>
+                    <button type="button" class="bookmark-button" id="bookmark-button">Bookmark File</button>
+                </div>
             </div>
-        </div>
 
-        <div id="message-container" class="message-container" contenteditable="true">
-        </div>
-
-        <div>
-            <form id="form">
-                <label for="room-input">Room</label>
-                <input type="text" id="room-input" placeholder="Enter room code">
-                <button type="button" id="room-button">Join</button>
-            </form>
-            <form id="form">
-                <label for="username-input">Username</label>
-                <input type="text" id="username-input" placeholder="Anonymous">
-                <button type="button" id="room-button">Update Name</button>
-            </form>
-        </div>
-        <div class="bottom-items codediv">
-            <button type="button" id="generate-room-code">Generate Room Code</button>
-            <div class="code-container" id="room-code"></div>
-            <button type="button" id="download-button">Download File</button>
         </div>
     </body>
 </html>
