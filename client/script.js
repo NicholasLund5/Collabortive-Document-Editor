@@ -264,7 +264,7 @@ function updateUserList(users) {
         });
     } else {
         const noOneHereMessage = document.createElement("div");
-        noOneHereMessage.textContent = "No one else, loner!";
+        noOneHereMessage.textContent = "No one else is here...";
         userList.appendChild(noOneHereMessage);
     }
 }

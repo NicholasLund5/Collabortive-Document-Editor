@@ -272,6 +272,25 @@ button,
     display: flex;
     flex-direction: column;
     gap: 10px;
+    position: relative; 
+    z-index: 1; 
+}
+
+.login-form input {
+    padding: 10px;
+    font-size: 16px;
+    width: 100%;
+    border: 1px solid black;
+    box-sizing: border-box;
+    font-family: monospace;
+    position: relative;
+    z-index: 2; 
+}
+
+.login-form button {
+    padding: 10px;
+    font-size: 16px;
+    cursor: pointer;
 }
 
 .signup-form {
@@ -281,4 +300,23 @@ button,
     display: flex;
     flex-direction: column;
     gap: 10px;
+    position: relative; 
+    z-index: 1; 
+}
+
+.signup-form input {
+    padding: 10px;
+    font-size: 16px;
+    width: 100%;
+    border: 1px solid black;
+    box-sizing: border-box;
+    font-family: monospace;
+    position: relative;
+    z-index: 2; 
+}
+
+.signup-form button {
+    padding: 10px;
+    font-size: 16px;
+    cursor: pointer;
 }
