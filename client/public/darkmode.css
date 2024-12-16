@@ -26,7 +26,6 @@ body {
 
 .flex-container {
     align-items: stretch;
-    gap: 10px;
     width: 100%; 
 }
 
@@ -64,6 +63,10 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-gap: 20px;
+}
+
+.theme-button {
+    margin-top: -25px;
 }
 
 .grid-items {
@@ -104,7 +107,7 @@ button {
     border: 1px solid #444; 
 }
 
-.new-file {
+.new-document {
     width: auto;
     justify-self: right;
     word-break: break-word;
@@ -132,8 +135,8 @@ button {
     color: #ffffff; 
 }
 
-.file-list,
-.message-container,
+.document-list,
+.body-text,
 .alert-container,
 .user-list {
     border: 1px solid #444;
@@ -144,25 +147,28 @@ button {
     background-color: #1e1e1e; 
     color: #ffffff; 
 }
-.alert-container,
-.user-list {
-    height: 50px;
-    margin-bottom: -20px;
-}
 
-.file-list,
-.message-container {
+
+
+.document-list, 
+.body-text {
     white-space: pre-wrap;
     word-wrap: break-word;
     flex-grow: 1;
 }
 
-.file-list {
+.document-list  {
     height: 300px;
 }
 
-.message-container {
+.body-text {
     height: 80%;
+}
+
+.alert-container,
+.user-list {
+    height: 50px;
+    margin-bottom: -20px;
 }
 
 .code-container {
@@ -191,7 +197,7 @@ button {
 }
 
 button,
-.download-button .bookmark-button {
+.download-button .save-button {
     padding: 10px 15px;
     font-size: 16px;
     cursor: pointer;
@@ -201,7 +207,7 @@ button,
     border: none;
 }
 
-.download-button .bookmark-button {
+.download-button .save-button {
     width: 100%;
     margin-top: 10px;
 }
@@ -229,7 +235,7 @@ button,
     margin-top: 5px;
 }
 
-.message-container div {
+.body-text div {
     background-color: #333; 
     padding: 5px;
     width: 50%;

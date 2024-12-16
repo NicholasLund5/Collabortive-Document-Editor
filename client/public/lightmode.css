@@ -77,7 +77,6 @@ body {
     height: 100%;
 }
 
-/* Form Elements */
 form {
     max-width: 1200px;
     margin-bottom: 10px;
@@ -94,7 +93,7 @@ label {
 
 input,
 .generate-room-code,
-.new-file,
+.new-document,
 button {
     padding: 10px;
     font-size: 16px;
@@ -105,7 +104,7 @@ button {
 
 }
 
-.new-file {
+.new-document {
     width: auto;
     justify-self: right;
     word-break: break-word;
@@ -116,7 +115,6 @@ button {
     margin-bottom: 5px;
 }
 
-/* Reusable Containers */
 .document-name {
     border: 1px solid black;
     overflow-y: auto;
@@ -125,8 +123,8 @@ button {
     word-break: break-word;
     height: auto;
 }
-.file-list,
-.message-container,
+.document-list,
+.body-text,
 .alert-container,
 .user-list {
     border: 1px solid black;
@@ -138,18 +136,18 @@ button {
 
 
 
-.file-list,
-.message-container {
+.document-list,
+.body-text {
     white-space: pre-wrap;
     word-wrap: break-word;
     flex-grow: 1;
 }
 
-.file-list {
+.document-list {
     height: 300px;
 }
 
-.message-container {
+.body-text {
     height: 80%;
 }
 
@@ -186,14 +184,14 @@ button {
 
 /* Buttons */
 button,
-.download-button .bookmark-button {
+.download-button .save-button {
     padding: 10px 15px;
     font-size: 16px;
     cursor: pointer;
     margin-bottom: 2px;
 }
 
-.download-button .bookmark-button {
+.download-button .save-button {
     width: 100%;
     margin-top: 10px;
 }
@@ -221,7 +219,7 @@ button,
     margin-top: 5px;
 }
 
-.message-container div {
+.body-text div {
     background-color: #ccc;
     padding: 5px;
     width: 50%;

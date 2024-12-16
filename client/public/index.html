@@ -3,7 +3,6 @@
 <head>
     <title>Real-Time Collaborative Note Editor</title>
     <link id="css" rel="stylesheet" href="lightmode.css">
-    <script src="script.js" type="module"></script>
 </head>
 <body>
     <div class="body-grid">
@@ -14,9 +13,9 @@
             </div>
             <div class="flex-container">
                 <p class="collaborator-heading">Change your pseudonym:</p>
-                <form id="name-form" class="flex-form">
-                    <input type="text" id="username-input" placeholder="Anonymous">
-                    <button type="button" id="update-name-button">Update</button>
+                <form id="pseudonym-form" class="flex-form">
+                    <input type="text" id="pseudonym-input" placeholder="Anonymous">
+                    <button type="submit" id="pseudonym-button">Update</button>
                 </form>
             </div>
             <div class="flex-container">
@@ -31,8 +30,8 @@
                 <div class="code-container" id="room-code"></div>
             </div>
             <div class="flex-container">
-                <p class="collaborator-heading">Your files:</p>
-                <div id="file-list" class="file-list"></div>
+                <p class="collaborator-heading">Your documents:</p>
+                <div id="document-list" class="document-list"></div>
             </div>
             <div class="flex-container">
                 <button type="button" class="theme-button" id="theme-button">Dark/Light Mode</button>
@@ -42,12 +41,12 @@
         <div class="main-content">
             <div class="header-items">
                 <div id="document-name" class="document-name" contenteditable="true">Untitled Document</div>
-                <button type="button" class="new-file" id="new-file">New File (Overwrites Current)</button>
+                <button type="button" class="new-document" id="new-document">New document (Overwrites Current)</button>
             </div>
-            <div id="message-container" class="message-container" contenteditable="true"></div>
+            <div id="body-text" class="body-text" contenteditable="true"></div>
             <div class="bottom-grid-items">
-                <button type="button" class="download-button" id="download-button">Download File</button>
-                <button type="button" class="bookmark-button" id="bookmark-button">Bookmark File</button>
+                <button type="button" class="download-button" id="download-button">Download document</button>
+                <button type="button" class="save-button" id="save-button">Save document</button>
             </div>
         </div>
 
@@ -73,4 +72,6 @@
         </div>
     </div>
 </body>
+<script src="/src/app.js" type="module"></script>
+
 </html>

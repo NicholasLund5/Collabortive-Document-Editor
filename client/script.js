@@ -10,7 +10,8 @@ const documentField = document.getElementById("document-name");
 const messageContainer = document.getElementById("message-container");
 
 const downloadButton = document.getElementById("download-button");
-const saveButton = document.getElementById("bookmark-button");
+const saveButton = document.getElementById("save-button");
+ 
 const fileList = document.getElementById("file-list");
 const newFile = document.getElementById("new-file");
 const themeButton = document.getElementById("theme-button");
@@ -269,9 +270,6 @@ function updateUserList(users) {
     }
 }
 
-
-
-
 function insertNodeAtCaret(content) {
     const selection = window.getSelection();
     if (!selection.rangeCount) return;
@@ -334,7 +332,6 @@ function bookmarkDoc(documentName, documentRef, updateStatus, fromDatabase = fal
         return;
     }
 
-    // If we're adding a previously known bookmark from DB, we skip alerts
     if (savedDocuments.has(documentRef) && !updateStatus) {
         if (!fromDatabase) {
             alert("Document already bookmarked.");
