@@ -1,30 +1,28 @@
 const sqlite3 = require('sqlite3').verbose();
 const { v4: uuidv4 } = require('uuid');
-const bcrypt = require('bcrypt'); // For password hashing
-const SALT_ROUNDS = 10; // Define the number of salt rounds for bcrypt
+const bcrypt = require('bcrypt'); 
+const SALT_ROUNDS = 10; 
 
 const io = require("socket.io")(3000, {
     cors: { origin: ["http://localhost:8080", "https://admin.socket.io"] },
 });
 
 // Database setup
-const db = new sqlite3.Database('./documents.db', sqlite3.OPEN_READWRITE, (err) => {
+const db = new sqlite3.Database('./database.db', sqlite3.OPEN_READWRITE, (err) => {
     if (err) return console.error(err.message);
 });
 
 db.run(`CREATE TABLE IF NOT EXISTS users (user_id TEXT PRIMARY KEY, username TEXT UNIQUE, password TEXT)`);
-db.run(`CREATE TABLE IF NOT EXISTS savedDocs (username TEXT, docID TEXT PRIMARY KEY)`);
+db.run(`CREATE TABLE IF NOT EXISTS savedDocs (username TEXT, docID TEXT, PRIMARY KEY (username, docID))`);
 db.run(`CREATE TABLE IF NOT EXISTS documents (docID TEXT PRIMARY KEY, title TEXT, content TEXT)`);
-
-
 
 // Room structure
 class Room {
     constructor(docID, title, content) {
         this.docID = docID;
         this.title = title || "Untitled Document";
-        this.content = content || "";
-        this.connectedUsers = {}; // {socketId: {pseudonym, username}}
+        this.content = content || "Begin Typing...";
+        this.connectedUsers = {}; 
     }
 
     addUser(socketId, pseudonym, username = null) {
@@ -40,107 +38,58 @@ class Room {
     }
 }
 
-
-
 const rooms = new Map();
 const activeUsers = new Map();
 
-function generateRandomRoomID() {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let roomId = '';
-    for (let i = 0; i < 10; i++) {
-        roomId += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
-    return roomId;
-}
-
-function generateUniqueRoomID(callback) {
-    const checkRoomExists = (roomId) => {
-        if (rooms.has(roomId)) {
-            checkRoomExists(generateRandomRoomID());
-        } else {
-            callback(roomId);
-        }
-    };
-
-    checkRoomExists(generateRandomRoomID());
-}
-
 io.on("connection", (socket) => {
-
     socket.data.username = null;
 
-    socket.on("initialize-user", (callback) => {
-        generateUniqueRoomID((uniqueRoomID) => {
-            const room = new Room(uniqueRoomID);
-            rooms.set(uniqueRoomID, room);
+    socket.on("get-new-room-code", (callback) => {
+        const generateRoomId = () => {
+            const base64 = Buffer.from(uuidv4().replace(/-/g, ''), 'hex').toString('base64');
+            return base64.replace(/[/+=]/g, '').slice(0, 20);
+        };
     
-            if (typeof callback === 'function') {
-                callback(uniqueRoomID);
+        const findUniqueRoomId = (callback) => {
+            let roomId = generateRoomId();
+            db.get(`SELECT docID FROM documents WHERE docID = ?`, [roomId], (err, row) => {
+                if (row || rooms.has(roomId)) {
+                    return findUniqueRoomId(callback); 
+                }
+    
+                callback(roomId); 
+            });
+        };
+    
+        findUniqueRoomId((roomId) => {
+            if (!roomId) {
+                return callback(null); 
             }
+    
+            const room = new Room(roomId); 
+            rooms.set(roomId, room); 
+            callback(roomId); 
         });
+    });
+    
+
+    socket.on("create-room", (roomId, callback) => {
+        const room = new Room(roomId); 
+        rooms.set(roomId, room); 
+        callback(roomId); 
     });
 
-    socket.on("delete-document", (documentId, callback) => {
-        if (!documentId) {
-            console.error("Document ID is missing");
-            return callback({ success: false, message: "Document ID is required." });
-        }
-    
-        // Delete the document association for the user
-        db.run(`DELETE FROM savedDocs WHERE docID = ? AND username = ?`, [documentId, socket.data.username], (err) => {
-            if (err) {
-                console.error("Error deleting saved document association:", err.message);
-                return callback({ success: false, message: "Failed to delete document association." });
-            }
-    
-            // Check if any users still have this document saved
-            db.get(`SELECT COUNT(*) AS count FROM savedDocs WHERE docID = ?`, [documentId], (err, row) => {
-                if (err) {
-                    console.error("Error checking remaining document associations:", err.message);
-                    return callback({ success: false, message: "Failed to check remaining associations." });
-                }
-    
-                if (row.count === 0) {
-                    // No associations left, delete the document
-                    db.run(`DELETE FROM documents WHERE docID = ?`, [documentId], (err) => {
-                        if (err) {
-                            console.error("Error deleting document:", err.message);
-                            return callback({ success: false, message: "Failed to delete the document." });
-                        }
-    
-                        // Notify all clients
-                        io.emit("document-deleted", documentId);
-                        callback({ success: true, message: "Document deleted successfully." });
-                    });
-                } else {
-                    console.log(`Document ${documentId} still saved by other users.`);
-                    callback({ success: true, message: "Document association removed successfully." });
-                }
-            });
-        });
-    });
-    
-    
     socket.on("join-room", (roomId, pseudonym, username = null, callback) => {
-        callback = typeof callback === "function" ? callback : () => {};
-    
-        console.log(`join-room called with roomId: ${roomId}, pseudonym: ${pseudonym}, username: ${username || "None"}`);
-    
-        if (!roomId) {
-            console.log("Room ID is missing.");
-            return callback({ success: false, message: "Room ID is required to join a room." });
-        }
-    
-        // Fetch the room/document from the database
         db.get(`SELECT * FROM documents WHERE docID = ?`, [roomId], (err, document) => {
             if (err) {
                 console.error("Error checking document existence:", err.message);
                 return callback({ success: false, message: "Server error. Please try again." });
             }
     
-            if (!document) {
-                console.log(`Room ${roomId} does not exist. Creating a new room.`);
+            if (!document && !rooms.has(roomId)) {
+                return callback({ success: false, message: "Room does not exist. Please enter a valid room code." });
+
+            } else if (!document) {
                 const newTitle = "Untitled Document";
                 const newContent = "";
     
@@ -152,23 +101,19 @@ io.on("connection", (socket) => {
                             console.error("Error creating new document:", err.message);
                             return callback({ success: false, message: "Error creating a new document." });
                         }
-    
-                        // Create a new room in memory
-                        const newRoom = new Room(roomId, newTitle, newContent);
+                        const newRoom = new Room(roomId, newTitle , newContent);
                         newRoom.addUser(socket.id, pseudonym, username);
                         rooms.set(roomId, newRoom);
     
-                        console.log(`New room ${roomId} created and joined by ${pseudonym}.`);
                         callback({
                             success: true,
                             documentId: roomId,
-                            title: newTitle,
-                            text: newContent,
+                            title: newTitle || "Untitled Document",
+                            text: newContent || "Begin typing...",
                         });
                     }
                 );
             } else {
-                // If the room exists, add the user to the in-memory room
                 let room = rooms.get(roomId);
                 if (!room) {
                     room = new Room(document.docID, document.title, document.content);
@@ -176,7 +121,6 @@ io.on("connection", (socket) => {
                 }
                 room.addUser(socket.id, pseudonym, username);
     
-                console.log(`Socket ${socket.id} joined room ${document.docID}.`);
                 callback({
                     success: true,
                     documentId: document.docID,
@@ -188,9 +132,6 @@ io.on("connection", (socket) => {
             updateUserList(roomId, socket); 
         });
     });
-
-
-
 
     socket.on("signup", (username, password, callback) => {
         if (!username || !password) {
@@ -211,7 +152,6 @@ io.on("connection", (socket) => {
                         if (err.message.includes("UNIQUE constraint")) {
                             return callback({ success: false, message: "Username already exists." });
                         }
-                        console.error("Error inserting user:", err.message);
                         return callback({ success: false, message: "Server error. Please try again." });
                     }
                     callback({ success: true });
@@ -249,11 +189,10 @@ io.on("connection", (socket) => {
                     }
     
                     if (result) {
-                        activeUsers.set(username, socket.id); // Track logged-in user
+                        activeUsers.set(username, socket.id); 
                         callback({ success: true });
                         socket.data.username = username;
     
-                        // Load saved documents for this user
                         db.all(
                             `SELECT d.docID, d.title 
                              FROM savedDocs s 
@@ -276,66 +215,81 @@ io.on("connection", (socket) => {
         );
     });
 
-    socket.on("add-saved-document", (username, documentId, title, text, callback) => {
-        if (!username || !documentId || !title || !text) {
-            console.error("Missing parameters: username, documentId, title, or text");
-            return callback({ success: false, message: "All parameters are required." });
-        }
-    
-        // Update both documents and savedDocs tables with the new title
+    socket.on("delete-document", (documentId) => {
         db.run(
-            `UPDATE documents SET title = ?, content = ? WHERE docID = ?`,
-            [title, text, documentId],
+            `DELETE FROM savedDocs WHERE docID = ? AND username = ?`,
+            [documentId, socket.data.username],
             (err) => {
                 if (err) {
-                    console.error("Error updating document content:", err.message);
-                    return callback({ success: false, message: "Error updating document content." });
+                    console.error("Error deleting saved document association:", err.message);
                 }
-
-                db.run(
-                    `INSERT OR REPLACE INTO savedDocs (username, docID) VALUES (?, ?)`,
-                    [username, documentId],
-                    (err) => {
+                db.get(
+                    `SELECT COUNT(*) AS count FROM savedDocs WHERE docID = ?`,
+                    [documentId],
+                    (err, row) => {
                         if (err) {
-                            console.error("Error saving document association:", err.message);
-                            return callback({ success: false, message: "Error saving document association." });
+                            console.error("Error checking remaining document associations:", err.message);
                         }
-
-                        console.log(`Document ${documentId} successfully saved/updated for user ${username}`);
-                        callback({ success: true, message: "Document saved successfully." });
+                        if (row.count === 0) {
+                            db.run(
+                                `DELETE FROM documents WHERE docID = ?`,
+                                [documentId],
+                                (err) => {
+                                    if (err) {
+                                        console.error("Error deleting document:", err.message);
+                                    }
+                                }
+                            );
+                        } 
                     }
                 );
             }
         );
-
-        io.to(username).emit("new-document-added", { 
-            docID: documentId, 
-            title: title, 
-            username: username 
-        });
     });
+    
+    
+    socket.on("add-saved-document", (username, documentId, title, text) => {
+        db.run(
+            `UPDATE documents SET title = ?, content = ? WHERE docID = ?`,
+            [title, text, documentId],
+            function (err) {
+                if (err) {
+                    console.error("Error updating document content:", err.message);
+                }    
+
+                db.run(
+                    `INSERT OR IGNORE INTO savedDocs (username, docID) VALUES (?, ?)`,
+                    [username, documentId],
+                    function (err) {
+                        if (err) {
+                            console.error("Error saving document association:", err.message);
+                        }
+
+                        io.to(username).emit("new-document-added", {
+                            docID: documentId,
+                            title: title,
+                            username: username,
+                        });
+                    }
+                );
+            }
+        );
+    });
+    
     
     socket.on("send-update-document", (documentId, title, text) => {
         const room = rooms.get(documentId);
-        if (!room) {
-            console.error(`Room with documentId ${documentId} not found.`);
-            return;
-        }
+        room.title = title || "";
+        room.content = text || "";
     
-        room.title = title;
-        room.content = text;
-    
-        // Update the database
         db.run(`UPDATE documents SET title = ?, content = ? WHERE docID = ?`, [title, text, documentId], (err) => {
             if (err) {
                 console.error("Error updating document in database:", err.message);
             }
         });
     
-        // Emit to all clients in the room
         socket.to(documentId).emit("receive-update-document", documentId, title, text);
     
-        // Notify all users with the document saved
         db.all(`SELECT username FROM savedDocs WHERE docID = ?`, [documentId], (err, rows) => {
             if (err) {
                 console.error("Error retrieving saved document users:", err.message);
@@ -352,26 +306,14 @@ io.on("connection", (socket) => {
     });
     
     socket.on("set-pseudonym", (pseudonym, roomId) => {
-
-        if (!rooms.has(roomId)) {
-            console.error(`Room ${roomId} does not exist.`);
-            return;
-        }
-    
         const room = rooms.get(roomId);
-        console.log(`Room ${room}`);
-        // Update the user's pseudonym in the room
         if (room.connectedUsers[socket.id]) {
             room.connectedUsers[socket.id].pseudonym = pseudonym;
-            console.log(`User ${socket.id} updated pseudonym to: ${pseudonym}`);
-            
-            // Emit updated user list to all clients in the room
             updateUserList(roomId);
-        } else {
-            console.error(`User ${socket.id} not found in room ${roomId}`);
-        }
+        } 
     });
 
+    
     socket.on("disconnect", () => {
         for (const [docID, room] of rooms.entries()) {
             if (room.connectedUsers[socket.id]) {
@@ -380,19 +322,28 @@ io.on("connection", (socket) => {
     
                 if (!room.hasUsers()) {
                     rooms.delete(docID);
-                    console.log(`Room ${docID} deleted as it has no users.`);
                 }
             }
         }
 
-
         const username = socket.data.username;
         if (username && activeUsers.has(username)) {
             activeUsers.delete(username);
-            console.log(`User ${username} disconnected and removed from active users.`);
         }
     });
     
+    socket.on("leave-room", () => {
+        for (const [docID, room] of rooms.entries()) {
+            if (room.connectedUsers[socket.id]) {
+                room.removeUser(socket.id); 
+                updateUserList(docID); 
+    
+                if (!room.hasUsers()) {
+                    rooms.delete(docID);
+                }
+            }
+        }
+    });
 
 
 });
@@ -406,11 +357,9 @@ function updateUserList(roomId) {
             username: user.username,
         }));
 
-        io.to(roomId).emit("update-user-list", users); // Broadcast user list
+        io.to(roomId).emit("update-user-list", users);
     }
 }
-
-
 
 setInterval(() => {
     db.all(
@@ -422,16 +371,14 @@ setInterval(() => {
             }
 
             rows.forEach(({ docID }) => {
-                if (!rooms.has(docID)) { // Check if the document is not in an active room
+                if (!rooms.has(docID)) { 
                     db.run(`DELETE FROM documents WHERE docID = ?`, [docID], (err) => {
                         if (err) {
                             console.error(`Error deleting document ${docID}:`, err.message);
-                        } else {
-                            console.log(`Document ${docID} deleted because it is unused.`);
-                        }
+                        } 
                     });
                 }
             });
         }
     );
-}, 3600000); // Run every hour
+}, 3600000);

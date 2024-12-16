@@ -1,3 +1,4 @@
+//OLD
 import { io } from "socket.io-client";
 
 const usernameInput = document.getElementById("username-input");

@@ -1,44 +1,31 @@
 import socket from './socket.js';
 import { getState} from './clientstate.js';
-import { joinRoom, updateDocument, loadSavedDocuments } from './utils.js';
-import { setSocketID } from './clientstate.js';
+import { joinRoom, addDocumentToList, updateDocument } from './utils.js';
 
 export function setupSocketHandlers() {
     socket.on("connect", () => {
-        setSocketID(socket.id);
-        socket.emit("initialize-user", (roomId) => { 
+        socket.emit("get-new-room-code", (roomId) => { 
             joinRoom(roomId);
         });
     });
-
     
     socket.on("receive-update-document", (documentId, title, text) => {
         if (documentId === getState().currentDocument.documentId) {
-
-            updateDocument(documentId, title, text); // Update UI and state
+            updateDocument(documentId, title, text); 
         }
     });
     
-    socket.on("pseudonym-updated", ({ socketId, pseudonym }) => {
-        alert("pseudonym-updated")
-        const userItem = document.querySelector(`[data-socket-id="${socketId}"]`);
-        if (userItem) {
-            userItem.textContent = pseudonym;
-        }
-    });
-
     socket.on("update-user-list", (users) => {
         const userList = document.getElementById("user-list");
-        userList.innerHTML = ""; // Clear the current list
+        userList.innerHTML = ""; 
     
-        const { socketID } = getState(); // Retrieve the client's socket ID
-        const otherUsers = users.filter(user => user.socketId !== socketID); // Exclude self
+        const otherUsers = users.filter(user => user.socketId !== socket.id); 
     
         if (otherUsers.length > 0) {
             otherUsers.forEach(user => {
                 const userItem = document.createElement("li");
                 userItem.textContent = user.pseudonym || "Anonymous";
-                userItem.setAttribute("data-socket-id", user.socketId); // Ensure proper tracking
+                userItem.setAttribute("data-socket-id", user.socketId); 
                 userList.appendChild(userItem);
             });
         } else {
@@ -50,7 +37,10 @@ export function setupSocketHandlers() {
     
 
     socket.on("load-saved-documents", (documents) => {
-        loadSavedDocuments(documents); 
+        for (const document of documents) {
+                const { docID, title } = document; 
+                addDocumentToList(docID, title); 
+            }
     });
 
     socket.on("saved-document-title-updated", (documentId, title) => {
@@ -58,15 +48,11 @@ export function setupSocketHandlers() {
         if (buttonContainer) {
             const documentButton = buttonContainer.querySelector(".document-button");
             if (documentButton) {
-                documentButton.textContent = title; // Update the button text
+                if (title === "<br>") {
+                    title = "Untitled Document"
+                }
+                documentButton.textContent = title; 
             }
-        }
-    });
-    
-    socket.on("document-deleted", (documentId) => {
-        const buttonContainer = document.querySelector(`[data-document-id="${documentId}"]`);
-        if (buttonContainer) {
-            buttonContainer.remove(); // Remove the document from the UI
         }
     });
 }

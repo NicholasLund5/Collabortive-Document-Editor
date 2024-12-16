@@ -1,13 +1,10 @@
 import { dom } from './domSelectors.js';
 import socket from './socket.js';
 import { setUsername, getState, setPseudonym} from './clientstate.js';
-import { joinRoom, loadSavedDocuments, saveDocument, insertNodeAtCaret } from './utils.js'
+import { joinRoom, addDocumentToList } from './utils.js'
 
 export function setupEventListeners() {
     document.addEventListener("DOMContentLoaded", () => {
-
-        
-
         dom.loginForm.addEventListener("submit", (e) => {
             e.preventDefault();
             const username = dom.loginUsername.value.trim();
@@ -16,9 +13,7 @@ export function setupEventListeners() {
                 if (response.success) {
                     setUsername(username);
                     alert("Login successful!");
-                    if (response.savedDocs && response.savedDocs.length > 0) {
-                        loadSavedDocuments(response.savedDocs);
-                    }
+
                 } else {
                     alert(response.message);
                 }
@@ -39,7 +34,7 @@ export function setupEventListeners() {
         });
 
         dom.pseudonymForm.addEventListener("submit", (e) => {
-            e.preventDefault(); // Prevent the form from actually submitting
+            e.preventDefault(); 
             
             const pseudonym = dom.pseudonymInput.value.trim() || "Anonymous";
             const { roomCode } = getState();
@@ -49,15 +44,9 @@ export function setupEventListeners() {
                 return;
             }
         
-            if (!pseudonym) {
-                console.error("No pseudonym provided");
-                return;
-            }
-        
-            console.log(`Emitting set-pseudonym with pseudonym: ${pseudonym}, roomCode: ${roomCode}`);
             socket.emit("set-pseudonym", pseudonym, roomCode);
         
-            setPseudonym(pseudonym); // Update pseudonym in client state
+            setPseudonym(pseudonym);
         });
         
         
@@ -67,25 +56,13 @@ export function setupEventListeners() {
                 alert("Room name cannot be empty.");
                 return;
             }
-            const { roomCode } = getState();
-            socket.emit("leave-room", roomCode); 
             joinRoom(newRoom);
         });
 
-        dom.documentNameField.addEventListener("input", () => {
-            const { currentDocument } = getState();
-            const title = dom.documentNameField.innerHTML
-            const body = dom.documentBodyField.innerHTML
-            socket.emit('send-update-document', currentDocument.documentId, title, body);
-        });
+        dom.documentNameField.addEventListener("input", sendDocumentUpdate);
+        dom.documentBodyField.addEventListener("input", sendDocumentUpdate);
 
-        dom.documentBodyField.addEventListener("input", () => {
-            const { currentDocument } = getState();
-            const title = dom.documentNameField.innerHTML
-            const body = dom.documentBodyField.innerHTML
-            socket.emit('send-update-document', currentDocument.documentId, title, body);
-        });
-
+        
         dom.documentNameField.addEventListener("keydown", (event) => {
             if (event.key === "Enter") {
                 event.preventDefault();
@@ -97,38 +74,40 @@ export function setupEventListeners() {
         });
 
         dom.newDocument.addEventListener("click", () => {
-            const { userRoom } = getState();
-            socket.emit("leave-room", userRoom); 
-            socket.emit("initialize-user", (roomId) => {
+            socket.emit("get-new-room-code", (roomId) => {
                 joinRoom(roomId);
             }); 
         });
 
         dom.downloadButton.addEventListener("click", () => {
-            const title = dom.documentNameField.innerText.trim() || "Untitled Document";
-            const documentBlob = new Blob([dom.documentBodyField.innerText], { type: "text/plain" });
-            const url = URL.createObjectURL(documentBlob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${title}.txt`; 
-            document.body.appendChild(a);
+            const title = (dom.documentNameField.innerText.trim() || "Untitled Document") + ".txt";
+            const content = dom.documentBodyField.innerText;
+            const url = URL.createObjectURL(new Blob([content], { type: "text/plain" }));
+            
+            const a = Object.assign(document.createElement("a"), {
+                href: url,
+                download: title,
+            });
+            
             a.click();
-            document.body.removeChild(a);
             URL.revokeObjectURL(url);
         });
 
         dom.saveButton.addEventListener("click", () => {
-            const { username, userRoom, currentDocument } = getState();
+            const { username, currentDocument } = getState();
             if (!username) {
                 alert("You must be logged in to bookmark files.");
                 return;
             }
-
+        
             const documentId = currentDocument.documentId;
             const title = dom.documentNameField.innerText.trim() || "Untitled Document";
             const text = dom.documentBodyField.innerText.trim() || "Empty Document";
-            saveDocument(documentId, title, text);
+                    
+            addDocumentToList(documentId, title);
+            socket.emit("add-saved-document", username, documentId, title, text);
         });
+        
 
         dom.themeButton.addEventListener("click", () => {
             const cssLink = document.getElementById("css");
@@ -140,15 +119,42 @@ export function setupEventListeners() {
         });
 
         dom.documentBodyField.addEventListener("keydown", (event) => {
+            let content = ""
             if (event.key === "Tab") {
                 event.preventDefault();
-                insertNodeAtCaret("\u00A0\u00A0\u00A0\u00A0");
+                content = "\u00A0\u00A0\u00A0\u00A0";
             }
             if (event.key === "Enter") {
                 event.preventDefault();
-                insertNodeAtCaret("br");
+                content = "br";
+            }
+            if (content) {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+                const range = selection.getRangeAt(0);
+            
+                let node;
+                if (content === "br") {
+                    node = document.createElement("br");
+                } else {
+                    node = document.createTextNode(content);
+                }
+            
+                range.insertNode(node);
+                range.setStartAfter(node);
+                range.setEndAfter(node);
+                selection.removeAllRanges();
+                selection.addRange(range);
+
+                sendDocumentUpdate();
             }
         });
 
+        function sendDocumentUpdate() {
+            const { currentDocument } = getState();
+            const title = dom.documentNameField.innerHTML
+            const body = dom.documentBodyField.innerHTML
+            socket.emit('send-update-document', currentDocument.documentId, title, body);
+        };
     });
 }
