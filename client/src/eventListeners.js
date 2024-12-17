@@ -102,7 +102,7 @@ export function setupEventListeners() {
         
             const documentId = currentDocument.documentId;
             const title = dom.documentNameField.innerText.trim() || "Untitled Document";
-            const text = dom.documentBodyField.innerText.trim() || "Empty Document";
+            const text = dom.documentBodyField.innerText.trim() || "";
                     
             addDocumentToList(documentId, title);
             socket.emit("add-saved-document", username, documentId, title, text);

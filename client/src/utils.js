@@ -20,7 +20,7 @@ export function joinRoom(roomId) {
         dom.roomCodeField.textContent = "";
         updateDocument(documentId, title, text);
     });
-
+    
 }
 export function updateDocument(documentId, title, text) {
     dom.documentNameField.innerHTML = title;

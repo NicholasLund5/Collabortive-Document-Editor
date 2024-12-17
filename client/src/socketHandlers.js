@@ -18,7 +18,6 @@ export function setupSocketHandlers() {
     socket.on("update-user-list", (users) => {
         const userList = document.getElementById("user-list");
         userList.innerHTML = ""; 
-    
         const otherUsers = users.filter(user => user.socketId !== socket.id); 
     
         if (otherUsers.length > 0) {

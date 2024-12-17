@@ -74,9 +74,15 @@ io.on("connection", (socket) => {
     
 
     socket.on("create-room", (roomId, callback) => {
-        const room = new Room(roomId); 
-        rooms.set(roomId, room); 
-        callback(roomId); 
+        if (rooms.has(roomId)) {
+            console.log(`[Server] Room ${roomId} already exists. Returning existing room.`);
+            callback(roomId); 
+        } else {
+            console.log(`[Server] Creating new room with ID: ${roomId}`);
+            const room = new Room(roomId);
+            rooms.set(roomId, room);
+            callback(roomId);
+        }
     });
 
     socket.on("join-room", (roomId, pseudonym, username = null, callback) => {
@@ -88,7 +94,6 @@ io.on("connection", (socket) => {
     
             if (!document && !rooms.has(roomId)) {
                 return callback({ success: false, message: "Room does not exist. Please enter a valid room code." });
-
             } else if (!document) {
                 const newTitle = "Untitled Document";
                 const newContent = "";
@@ -101,16 +106,20 @@ io.on("connection", (socket) => {
                             console.error("Error creating new document:", err.message);
                             return callback({ success: false, message: "Error creating a new document." });
                         }
-                        const newRoom = new Room(roomId, newTitle , newContent);
+    
+                        const newRoom = new Room(roomId, newTitle, newContent);
                         newRoom.addUser(socket.id, pseudonym, username);
                         rooms.set(roomId, newRoom);
     
                         callback({
                             success: true,
                             documentId: roomId,
-                            title: newTitle || "Untitled Document",
-                            text: newContent || "Begin typing...",
+                            title: newTitle,
+                            text: newContent,
                         });
+    
+                        socket.join(roomId);
+                        updateUserList(roomId);
                     }
                 );
             } else {
@@ -127,11 +136,13 @@ io.on("connection", (socket) => {
                     title: document.title,
                     text: document.content,
                 });
+    
+                socket.join(roomId);
+                updateUserList(roomId);
             }
-            socket.join(roomId);
-            updateUserList(roomId, socket); 
         });
     });
+    
 
     socket.on("signup", (username, password, callback) => {
         if (!username || !password) {
@@ -279,8 +290,8 @@ io.on("connection", (socket) => {
     
     socket.on("send-update-document", (documentId, title, text) => {
         const room = rooms.get(documentId);
-        room.title = title || "";
-        room.content = text || "";
+        room.title = title || "Untitled Document";
+        room.content = text || "Begin Typing...";
     
         db.run(`UPDATE documents SET title = ?, content = ? WHERE docID = ?`, [title, text, documentId], (err) => {
             if (err) {
@@ -333,7 +344,7 @@ io.on("connection", (socket) => {
     });
     
     socket.on("leave-room", () => {
-        for (const [docID, room] of rooms.entries()) {
+        for (const [docID, room] of rooms.entries()) { 
             if (room.connectedUsers[socket.id]) {
                 room.removeUser(socket.id); 
                 updateUserList(docID); 
@@ -344,8 +355,6 @@ io.on("connection", (socket) => {
             }
         }
     });
-
-
 });
 
 function updateUserList(roomId) {
