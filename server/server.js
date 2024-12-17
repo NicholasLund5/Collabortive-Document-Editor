@@ -75,10 +75,8 @@ io.on("connection", (socket) => {
 
     socket.on("create-room", (roomId, callback) => {
         if (rooms.has(roomId)) {
-            console.log(`[Server] Room ${roomId} already exists. Returning existing room.`);
             callback(roomId); 
         } else {
-            console.log(`[Server] Creating new room with ID: ${roomId}`);
             const room = new Room(roomId);
             rooms.set(roomId, room);
             callback(roomId);
