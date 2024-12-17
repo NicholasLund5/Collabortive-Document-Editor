@@ -96,7 +96,7 @@ io.on("connection", (socket) => {
                 return callback({ success: false, message: "Room does not exist. Please enter a valid room code." });
             } else if (!document) {
                 const newTitle = "Untitled Document";
-                const newContent = "";
+                const newContent = "Begin Typing...";
     
                 db.run(
                     `INSERT INTO documents (docID, title, content) VALUES (?, ?, ?)`,
