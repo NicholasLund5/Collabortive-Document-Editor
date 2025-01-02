@@ -322,7 +322,6 @@ io.on("connection", (socket) => {
         } 
     });
 
-    
     socket.on("disconnect", () => {
         for (const [docID, room] of rooms.entries()) {
             if (room.connectedUsers[socket.id]) {
